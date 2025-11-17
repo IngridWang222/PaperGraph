@@ -8,6 +8,7 @@ from app.models.mysql_models import (
     GraphNodeMapping, StatisticsData, ExportLog
 )
 from loguru import logger
+from app.tasks.export_tasks import generate_export_file
 
 class StatisticsDAO:
     def __init__(self, db: Session):
@@ -75,6 +76,7 @@ class ExportDAO:
             job = ExportLog(job_id=job_id, user_id=user_id, params=params, status="pending")
             self.db.add(job)
             self.db.commit()
+            generate_export_file(self,job_id)
             return True
         except Exception as e:
             logger.error(f"插入导出任务失败: {e}")

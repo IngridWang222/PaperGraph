@@ -1,18 +1,23 @@
 """导出任务"""
 from app.tasks.celery_app import celery_app
 from app.database import SessionLocal
-from app.repositories.mysql_dao import ExportDAO, StatisticsDAO, PaperDAO, AuthorDAO, OrganizationDAO
 from config import settings
 import csv, os
 from datetime import datetime
 from loguru import logger
 import openpyxl
 from openpyxl.styles import Font, Alignment
+from typing import List, Dict, Any, Optional
+from sqlalchemy.orm import Session
+from app.models.mysql_models import (
+    PaperInfo, AuthorInfo, OrganizationInfo,
+    PaperAuthorRelation, AuthorOrganizationRelation, PaperCitationRelation,
+    GraphNodeMapping, StatisticsData, ExportLog
+)
 
 @celery_app.task(name="export.generate_file", bind=True)
-def generate_export_file(self, job_id: str):
+def generate_export_file(self, export_dao, job_id: str):
     db = SessionLocal()
-    export_dao = ExportDAO(db)
     
     try:
         job = export_dao.get_job(job_id)
@@ -174,3 +179,86 @@ def cleanup_old_files():
     except Exception as e:
         logger.error(f"清理旧文件失败: {e}")
 
+class PaperDAO:
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def get_papers(self, filters: Dict[str, Any] = None, limit: int = 100) -> List[PaperInfo]:
+        query = self.db.query(PaperInfo)
+        if filters:
+            if "year" in filters:
+                query = query.filter(PaperInfo.year == filters["year"])
+            if "keyword" in filters:
+                query = query.filter(PaperInfo.keywords.like(f"%{filters['keyword']}%"))
+        return query.limit(limit).all()
+
+class AuthorDAO:
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def get_authors(self, limit: int = 100) -> List[AuthorInfo]:
+        return self.db.query(AuthorInfo).limit(limit).all()
+
+class OrganizationDAO:
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def get_organizations(self, limit: int = 100) -> List[OrganizationInfo]:
+        return self.db.query(OrganizationInfo).limit(limit).all()
+    
+class StatisticsDAO:
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def query_aggregated(self, query_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        metric = query_params.get("metric")
+        start_year = query_params.get("start_year")
+        end_year = query_params.get("end_year")
+        limit = query_params.get("limit", 100)
+        
+        try:
+            if metric == "paper_count_by_year":
+                query = self.db.query(
+                    PaperInfo.year,
+                    func.count(PaperInfo.paper_id).label("count")
+                ).group_by(PaperInfo.year)
+                
+                if start_year:
+                    query = query.filter(PaperInfo.year >= start_year)
+                if end_year:
+                    query = query.filter(PaperInfo.year <= end_year)
+                
+                query = query.order_by(PaperInfo.year).limit(limit)
+                results = query.all()
+                return [{"label": str(r.year), "value": r.count} for r in results]
+            
+            elif metric == "top_authors":
+                query = self.db.query(
+                    AuthorInfo.author_id,
+                    AuthorInfo.name,
+                    AuthorInfo.paper_count,
+                    AuthorInfo.h_index
+                ).order_by(AuthorInfo.paper_count.desc()).limit(limit)
+                
+                results = query.all()
+                return [{"label": r.name, "value": r.paper_count, "extra": {"h_index": r.h_index, "author_id": r.author_id}} for r in results]
+            
+            elif metric == "top_organizations":
+                query = self.db.query(
+                    OrganizationInfo.org_id,
+                    OrganizationInfo.name,
+                    OrganizationInfo.paper_count,
+                    OrganizationInfo.rank_score
+                ).order_by(OrganizationInfo.paper_count.desc()).limit(limit)
+                
+                results = query.all()
+                return [{"label": r.name, "value": r.paper_count, "extra": {"rank_score": float(r.rank_score) if r.rank_score else 0, "org_id": r.org_id}} for r in results]
+            
+            else:
+                query = self.db.query(StatisticsData).filter(StatisticsData.metric == metric).limit(limit)
+                results = query.all()
+                return [{"label": r.dims_json.get("label", ""), "value": float(r.value) if r.value else 0, "extra": r.dims_json} for r in results]
+        
+        except Exception as e:
+            logger.error(f"查询统计数据失败: {e}")
+            raise
