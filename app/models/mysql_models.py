@@ -63,6 +63,15 @@ class PaperAuthorRelation(Base):
     is_corresponding = Column(Integer, default=0, comment="是否通讯作者（1=是，0=否）")
 
 
+class AuthorOrganizationRelation(Base):
+    """作者-机构关联表"""
+    __tablename__ = "author_organization_relation"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True, comment="主键")
+    author_id = Column(String(64), ForeignKey("author_info.author_id"), nullable=False, comment="作者编号")
+    org_id = Column(String(64), ForeignKey("organization_info.org_id"), nullable=False, comment="机构编号")
+
+
 class PaperCitationRelation(Base):
     """论文引用关系表"""
     __tablename__ = "paper_citation_relation"
