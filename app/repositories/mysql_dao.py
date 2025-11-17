@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models.mysql_models import (
     PaperInfo, AuthorInfo, OrganizationInfo,
-    PaperAuthorRelation, PaperCitationRelation,
+    PaperAuthorRelation, AuthorOrganizationRelation, PaperCitationRelation,
     GraphNodeMapping, StatisticsData, ExportLog
 )
 from loguru import logger
