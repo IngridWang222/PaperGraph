@@ -56,13 +56,13 @@ class GraphDAO:
                      orgs=orgs,
                      limit=limit)
             for rec in result:
-                # 节点
+                # 节点：根据返回记录依次加入 Author / Paper / Organization
                 for label, node, node_id in (
                     ("Author", rec["a_node"], rec["a_id"]),
                     ("Paper", rec["b_node"], rec["b_id"]),
                     ("Organization", rec["o_node"], rec["o_id"]),
                 ):
-                    if node_id not in node_ids:
+                    if node_id and node_id not in node_ids:
                         nodes.append({
                             "id": node_id,
                             "label": list(node.labels)[0],
@@ -70,16 +70,30 @@ class GraphDAO:
                         })
                         node_ids.add(node_id)
 
-                # 边
-                for rel in (rec["rel"], rec["rel2"]):
-                    if rel:
-                        edges.append({
-                            "id": str(rel.id),
-                            "source": rel.start_node["id"],
-                            "target": rel.end_node["id"],
-                            "type": rel.type,
-                            "properties": dict(rel),
-                        })
+                # 边：
+                # 1）真实的作者-论文关系（AUTHORED）来自 r
+                if rec["rel"]:
+                    rel = rec["rel"]
+                    edges.append({
+                        "id": str(rel.id),
+                        "source": rel.start_node["id"],
+                        "target": rel.end_node["id"],
+                        "type": rel.type,            # "AUTHORED"
+                        "properties": dict(rel),
+                    })
+
+                # 2）单位-作者关系：为保证前端一定能拿到，
+                #    无论 Neo4j 中是否有显式 AFFILIATED_WITH 边，这里都根据 a_id 和 o_id 补一条逻辑边
+                a_id = rec["a_id"]
+                o_id = rec["o_id"]
+                if a_id and o_id:
+                    edges.append({
+                        "id": f"{a_id}->{o_id}:AFFILIATED_WITH",
+                        "source": a_id,
+                        "target": o_id,
+                        "type": "AFFILIATED_WITH",
+                        "properties": {},
+                    })
         logger.info("[返回] 节点数={} 边数={}", len(nodes), len(edges))
         return nodes, edges
 

@@ -11,26 +11,16 @@ class GraphService:
         self.cache = cache
     
     def get_root(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        cache_key = f"graph:root:{json.dumps(params, sort_keys=True)}"
-        
-        if self.cache:
-            try:
-                cached = self.cache.get(cache_key)
-                if cached:
-                    logger.info("从缓存获取根节点数据")
-                    return json.loads(cached)
-            except Exception as e:
-                logger.warning(f"缓存读取失败: {e}")
-        
+        """
+        获取根图谱数据。
+
+        说明：
+        - 为了开发调试和保证前后端数据实时一致，这里暂时关闭 Redis 缓存，
+          每次都直接从 Neo4j 读取最新结果。
+        - 如需开启缓存，可恢复原有 self.cache 逻辑。
+        """
         nodes, edges = self.dao.query_root(params)
         result = {"nodes": nodes, "edges": edges}
-        
-        if self.cache:
-            try:
-                self.cache.setex(cache_key, 3600, json.dumps(result))
-            except Exception as e:
-                logger.warning(f"缓存写入失败: {e}")
-        
         return result
     
     def get_children(self, node_id: str) -> Dict[str, Any]:

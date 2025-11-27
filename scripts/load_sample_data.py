@@ -23,6 +23,11 @@ def load_sample_data():
         db.commit()
         logger.info("✓ 已清空 MySQL 旧数据")
 
+        # 一些固定参数，便于理解和修改
+        NUM_ORGS = 5
+        AUTHORS_PER_ORG = 3
+        PAPERS_PER_AUTHOR = 5
+
         # ==== 构造 5 个单位 ====
         org_templates = [
             ("清华大学", "中国", "THU", 98.5),
@@ -33,7 +38,7 @@ def load_sample_data():
         ]
 
         orgs = []
-        for idx, (name, country, abbr, score) in enumerate(org_templates, start=1):
+        for idx, (name, country, abbr, score) in enumerate(org_templates[:NUM_ORGS], start=1):
             orgs.append(
                 {
                     "org_id": f"org_{idx:03d}",
@@ -44,7 +49,7 @@ def load_sample_data():
                     "paper_count": 0,
                 }
             )
-        
+
         for org_data in orgs:
             org = OrganizationInfo(**org_data)
             db.merge(org)
@@ -52,7 +57,7 @@ def load_sample_data():
         db.commit()
         logger.info(f"✓ 创建了 {len(orgs)} 个单位")
 
-        # ==== 构造作者，分布在不同单位：每个单位 3 个作者 ====
+        # ==== 构造作者，分布在不同单位：每个单位 3 个作者，共 15 个作者 ====
         cn_family_names = ["张", "王", "李", "赵", "刘", "陈", "杨", "黄", "周", "吴"]
         cn_given_names = ["伟", "芳", "娜", "敏", "静", "磊", "洋", "艳", "勇", "军"]
         en_first_names = ["John", "Mary", "Alice", "Bob", "David", "Emily", "Michael", "Sarah"]
@@ -66,7 +71,7 @@ def load_sample_data():
 
         author_index = 1
         for org_id in org_ids:
-            for _ in range(3):  # 每个单位 3 个作者
+            for _ in range(AUTHORS_PER_ORG):  # 每个单位 3 个作者
                 # 中英文名字混合
                 if author_index % 2 == 0:
                     name = random.choice(cn_family_names) + random.choice(cn_given_names)
@@ -96,7 +101,7 @@ def load_sample_data():
             db.merge(author)
 
         db.commit()
-        logger.info(f"✓ 创建了 {len(authors)} 个作者")
+        logger.info(f"✓ 创建了 {len(authors)} 个作者（期望 {NUM_ORGS * AUTHORS_PER_ORG}）")
         
         # 生成 5 * 3 * 5 = 75 篇示例论文：
         # 每个单位有 3 个作者，每个作者有 5 篇论文，形成严格的“单位 -> 作者 -> 论文”树
@@ -113,7 +118,7 @@ def load_sample_data():
             org_id = org["org_id"]
             org_abbr = org["abbreviation"]
             for author_id in org_to_authors[org_id]:
-                for _ in range(5):  # 每个作者 5 篇论文
+                for _ in range(PAPERS_PER_AUTHOR):  # 每个作者 5 篇论文
                     paper_id = f"paper_{paper_index:03d}"
                     year = base_year + (paper_index % 8)  # 在最近几年内循环
                     venue = f"{random.choice(venues)} {year}"
@@ -145,20 +150,17 @@ def load_sample_data():
             db.merge(paper)
 
         db.commit()
-        logger.info(f"✓ 创建了 {len(papers)} 篇论文")
+        logger.info(f"✓ 创建了 {len(papers)} 篇论文（期望 {NUM_ORGS * AUTHORS_PER_ORG * PAPERS_PER_AUTHOR}）")
 
         # 为每篇论文分配作者：每篇论文唯一对应一个作者（形成严格的树而非网状）
         relations = []
-
-        # 建立 author_id 到 org_id 的映射，方便校验
-        author_org_map = {a["author_id"]: a["org_id"] for a in authors}
 
         paper_idx = 0
         for org in orgs:
             org_id = org["org_id"]
             for author_id in org_to_authors[org_id]:
                 # 当前作者的 5 篇论文在 papers 列表中的起止范围
-                for _ in range(5):
+                for _ in range(PAPERS_PER_AUTHOR):
                     paper = papers[paper_idx]
                     paper_id = paper["paper_id"]
                     relations.append(
@@ -219,6 +221,7 @@ def sync_to_neo4j(db):
                 node_id = dao.create_author_node({
                     "id": author.author_id,
                     "name": author.name,
+                    "org_id": author.org_id,  # 保留作者所属单位，方便前端补充单位-作者边
                     "h_index": author.h_index,
                     "orcid": author.orcid,
                     "email": author.email

@@ -184,9 +184,12 @@ const chartDom = ref<HTMLDivElement>();
 let ins: echarts.ECharts;
 
 const lineStyleMap: Record<string, any> = {
-  AUTHORED: { width: 1.5, color: "#67c23a", type: "solid" },
-  AFFILIATED_WITH: { width: 1.5, color: "#909399", type: "dashed" },
-  CITES: { width: 2, color: "#f56c6c", type: "dotted" },
+  // 作者-论文边：绿色
+  AUTHORED: { width: 2, color: "#52c41a", type: "solid", opacity: 0.9 },
+  // 单位-作者边：加粗加深，便于观察
+  AFFILIATED_WITH: { width: 3, color: "#303133", type: "solid", opacity: 1 },
+  // 引用边：红色虚线
+  CITES: { width: 2, color: "#f56c6c", type: "dotted", opacity: 0.9 },
 };
 
 /**
@@ -196,9 +199,18 @@ const lineStyleMap: Record<string, any> = {
 function zoomGraph(factor: number) {
   if (!ins) return;
   try {
-    (ins as any).dispatchAction({
-      type: "graphRoam",
-      zoom: factor,
+    const option = ins.getOption() as any;
+    const series = option.series?.[0] || {};
+    const currentZoom = typeof series.zoom === "number" ? series.zoom : 1;
+    const newZoom = Math.max(0.2, Math.min(5, currentZoom * factor));
+
+    ins.setOption({
+      series: [
+        {
+          ...series,
+          zoom: newZoom,
+        },
+      ],
     });
   } catch (e) {
     console.warn("图谱缩放失败:", e);
@@ -226,6 +238,10 @@ async function onFilter() {
 
     console.log("原始节点:", rawData.nodes);
     console.log("原始边:", rawData.edges);
+    console.log(
+      "原始边（AFFILIATED_WITH）:",
+      rawData.edges.filter((e: any) => e.type === "AFFILIATED_WITH")
+    );
 
     // 将后端通用节点结构映射为前端 Node 结构，并补充不同类型的字段
     const processedNodes: Node[] = rawData.nodes.map((node) => {
@@ -267,7 +283,7 @@ async function onFilter() {
 
     const edgeMap = new Map<string, Edge>();
     rawData.edges.forEach((edge) => {
-      const key = `${edge.source}-${edge.target}`;
+      const key = `${edge.source}-${edge.target}-${edge.type}`;
       if (!edgeMap.has(key)) {
         edgeMap.set(key, {
           source: edge.source,
@@ -279,17 +295,44 @@ async function onFilter() {
     });
     const processedEdges = Array.from(edgeMap.values());
 
+    // ===== 在前端补充单位-作者关系边（AFFILIATED_WITH） =====
+    // 某些情况下后端未返回 AFFILIATED_WITH 边，但 Author 节点上有 org_id 属性
+    const orgIdSet = new Set(
+      processedNodes.filter((n) => n.type === "Organization").map((n) => n.id)
+    );
+    const orgAuthorEdges: Edge[] = [];
+    processedNodes
+      .filter((n) => n.type === "Author")
+      .forEach((author: any) => {
+        const orgId = author.org_id as string | undefined;
+        if (orgId && orgIdSet.has(orgId)) {
+          const key = `${author.id}-${orgId}-AFFILIATED_WITH`;
+          if (!edgeMap.has(key)) {
+            const e: Edge = {
+              source: author.id,
+              target: orgId,
+              relation: "AFFILIATED_WITH",
+            };
+            orgAuthorEdges.push(e);
+            edgeMap.set(key, e);
+          }
+        }
+      });
+
     const dto: GraphDTO = {
       nodes: processedNodes,
-      edges: processedEdges,
+      edges: [...processedEdges, ...orgAuthorEdges],
     };
 
     // 保存完整图数据
     fullGraph.value = dto;
 
-    // 初始展示：只显示单位 + 作者，以及单位-作者之间的关系
-    const initialNodes = processedNodes.filter((n) => n.type !== "Paper");
-    const initialEdges = processedEdges.filter((e) => e.relation === "AFFILIATED_WITH");
+    // 初始展示：只显示单位 + 作者，以及它们之间的连线
+    const initialNodes = processedNodes.filter(
+      (n) => n.type === "Organization" || n.type === "Author"
+    );
+    // 单位-作者边：关系类型为 AFFILIATED_WITH（包括前端补充的那部分）
+    const initialEdges = fullGraph.value.edges.filter((e) => e.relation === "AFFILIATED_WITH");
 
     visibleGraph.value = {
       nodes: initialNodes,
