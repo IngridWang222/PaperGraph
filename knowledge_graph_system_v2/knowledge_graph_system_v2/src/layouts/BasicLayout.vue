@@ -8,9 +8,7 @@
         <router-view />
       </a-layout-content>
       <a-layout-footer class="footer">
-        <a href="https://codefather.cn" target="_blank">
-          当前文献数量：{{ 2 }}
-        </a>
+        <a href="https://codefather.cn" target="_blank"> 当前文献数量：{{ 2 }} </a>
       </a-layout-footer>
     </a-layout>
   </div>

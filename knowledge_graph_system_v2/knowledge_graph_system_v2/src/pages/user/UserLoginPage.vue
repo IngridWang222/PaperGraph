@@ -16,10 +16,7 @@
         name="userAccount"
         :rules="[{ required: true, message: '请输入账号' }]"
       >
-        <a-input
-          v-model:value="formState.userAccount"
-          placeholder="请输入账号"
-        />
+        <a-input v-model:value="formState.userAccount" placeholder="请输入账号" />
       </a-form-item>
       <a-form-item
         label="密码"
@@ -29,10 +26,7 @@
           { min: 8, message: '密码不能小于 8 位' },
         ]"
       >
-        <a-input-password
-          v-model:value="formState.userPassword"
-          placeholder="请输入密码"
-        />
+        <a-input-password v-model:value="formState.userPassword" placeholder="请输入密码" />
       </a-form-item>
       <a-form-item :wrapper-col="{ offset: 4, span: 20 }">
         <a-button type="primary" html-type="submit">登录</a-button>

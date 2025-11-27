@@ -1,8 +1,14 @@
 <template>
-  <a-card 
-    title="文献列表" 
+  <a-card
+    title="文献列表"
     :bordered="false"
-    style="margin: 16px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);"
+    style="
+      margin: 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+    "
   >
     <!-- 搜索条 -->
     <a-row :gutter="16" style="margin-bottom: 16px">
@@ -92,7 +98,7 @@ async function loadData() {
       limit: 200, // 先拉 200 条，前端再分页
       author: searchKey.value.trim(), // 使用author参数进行搜索
     });
-    
+
     /* 把图节点转成 Paper 类型 */
     // 后端返回格式：nodes = [{id, label, properties: {title, year, ...}}]
     const papers: Paper[] = res.nodes
@@ -101,12 +107,13 @@ async function loadData() {
         const props = n.properties || {};
         // 如果搜索关键词不为空，进行前端过滤
         const searchLower = searchKey.value.toLowerCase().trim();
-        const matchesSearch = !searchLower || 
+        const matchesSearch =
+          !searchLower ||
           (props.title || "").toLowerCase().includes(searchLower) ||
           (props.name || "").toLowerCase().includes(searchLower);
-        
+
         if (!matchesSearch) return null;
-        
+
         return {
           id: n.id,
           title: props.title || props.name || "未知标题",

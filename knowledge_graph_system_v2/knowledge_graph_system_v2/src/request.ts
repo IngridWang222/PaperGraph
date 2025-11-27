@@ -20,9 +20,7 @@ alert(process.env.NODE_ENV);
 const myAxios = axios.create({
   // 区分开发和线上环境
   baseURL:
-    process.env.NODE_ENV === "development"
-      ? "http://localhost:8080"
-      : "https://codefather.cn",
+    process.env.NODE_ENV === "development" ? "http://localhost:8080" : "https://codefather.cn",
   timeout: 10000,
   withCredentials: true,
 });

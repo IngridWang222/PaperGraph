@@ -1,17 +1,33 @@
 <template>
-  <a-layout style="height: calc(100vh - 120px); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);">
+  <a-layout
+    style="
+      height: calc(100vh - 120px);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    "
+  >
     <!-- 左侧筛选器 -->
-    <a-layout-sider width="280" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+    <a-layout-sider
+      width="280"
+      style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px)"
+    >
       <div style="padding: 20px">
-        <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 20px; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 12px;">筛选器</h3>
+        <h3
+          style="
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 12px;
+          "
+        >
+          筛选器
+        </h3>
         <a-form layout="vertical">
           <a-form-item label="年份">
-            <a-slider
-              range
-              :min="2000"
-              :max="2025"
-              v-model:value="filter.year"
-            />
+            <a-slider range :min="2000" :max="2025" v-model:value="filter.year" />
           </a-form-item>
           <a-form-item label="机构">
             <a-select
@@ -25,7 +41,18 @@
             <a-input v-model:value="filter.author" placeholder="模糊搜索" />
           </a-form-item>
           <a-form-item>
-            <a-button type="primary" block @click="onFilter" size="large" style="height: 40px; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+            <a-button
+              type="primary"
+              block
+              @click="onFilter"
+              size="large"
+              style="
+                height: 40px;
+                border-radius: 8px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border: none;
+              "
+            >
               应用筛选
             </a-button>
           </a-form-item>
@@ -34,14 +61,30 @@
     </a-layout-sider>
 
     <!-- 中间图谱 -->
-    <a-layout-content style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); position: relative">
+    <a-layout-content
+      style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); position: relative"
+    >
       <div ref="chartDom" style="width: 100%; height: 100%"></div>
     </a-layout-content>
 
     <!-- 右侧详情 -->
-    <a-layout-sider width="320" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+    <a-layout-sider
+      width="320"
+      style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px)"
+    >
       <div style="padding: 20px">
-        <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 20px; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 12px;">详细信息</h3>
+        <h3
+          style="
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 12px;
+          "
+        >
+          详细信息
+        </h3>
         <div v-if="!selected">请单击节点/边</div>
         <a-form v-else layout="vertical" size="small">
           <a-form-item label="名称">
@@ -96,8 +139,7 @@ import { ref, onMounted } from "vue";
 import * as echarts from "echarts";
 import type { GraphDTO, Node, Edge } from "@/types/graph";
 import { message } from "ant-design-vue";
-import { get } from "@/api/http";
-import { post } from "@/api/http";
+import { fetchRootGraph, fetchChildrenGraph, persistLayout, type GraphResponse } from "@/api/graph";
 /* 筛选状态 */
 const filter = ref({
   year: [2020, 2025],
@@ -105,13 +147,15 @@ const filter = ref({
   author: "",
 });
 
-const orgOptions = ref([
-  { label: "Tsinghua", value: "Tsinghua" },
-  { label: "PKU", value: "PKU" },
-]);
+// 机构下拉选项，后端返回后动态填充
+const orgOptions = ref<{ label: string; value: string }[]>([]);
 
 /* 选中项 */
 const selected = ref<Node | null>(null);
+
+/* 当前图数据和展开状态（用于子树显隐） */
+const graphData = ref<GraphDTO>({ nodes: [], edges: [] });
+const expandedNodes = ref<Set<string>>(new Set());
 
 /* 图谱实例 */
 const chartDom = ref<HTMLDivElement>();
@@ -126,37 +170,61 @@ const lineStyleMap: Record<string, any> = {
 /**
  * 应用筛选并加载数据
  */
-// 在 script setup 顶部添加类型接口
-interface GraphResponse {
-  nodes: any[];
-  edges: any[];
-}
 async function onFilter() {
   try {
+    // 每次筛选重置展开状态
+    expandedNodes.value = new Set();
+
     const params = {
+      limit: 1000,
       yearStart: filter.value.year[0],
       yearEnd: filter.value.year[1],
       orgs: filter.value.orgs,
       author: filter.value.author,
     };
 
-    // 提取接口类型
-    interface GraphResponse {
-      nodes: any[];
-      edges: any[];
-    }
-
-    const rawData = await get<GraphResponse>("/graph/root", params);
+    const rawData = await fetchRootGraph(params);
 
     console.log("原始节点:", rawData.nodes);
     console.log("原始边:", rawData.edges);
 
-    const processedNodes: Node[] = rawData.nodes.map((node) => ({
-      id: node.id,
-      type: node.label as "Paper" | "Author" | "Organization",
-      label: node.properties?.name || node.properties?.title || node.label,
-      ...node.properties,
-    }));
+    // 将后端通用节点结构映射为前端 Node 结构，并补充不同类型的字段
+    const processedNodes: Node[] = rawData.nodes.map((node) => {
+      const props = node.properties || {};
+      const type = node.label as "Paper" | "Author" | "Organization";
+
+      const base: Node = {
+        id: props.id || node.id,
+        type,
+        label: props.name || props.title || node.label,
+        // 通用属性直接铺开
+        ...props,
+      };
+
+      // 针对不同类型做字段映射，让右侧详情可以正确显示
+      if (type === "Author") {
+        base.hIndex = props.h_index ?? props.hIndex;
+        base.orcid = props.orcid;
+      } else if (type === "Organization") {
+        base.country = props.country;
+        // rank_score -> rank
+        const rankScore = props.rank_score ?? props.rank;
+        base.rank = typeof rankScore === "number" ? rankScore : Number(rankScore || 0);
+      } else if (type === "Paper") {
+        base.title = props.title;
+        base.year = props.year;
+        base.venue = props.venue;
+        base.doi = props.doi;
+      }
+
+      return base;
+    });
+
+    // 根据组织节点动态生成筛选下拉选项，保持前后端一致
+    const orgNames = Array.from(
+      new Set(processedNodes.filter((n) => n.type === "Organization").map((n) => n.label))
+    );
+    orgOptions.value = orgNames.map((name) => ({ label: name, value: name }));
 
     const edgeMap = new Map<string, Edge>();
     rawData.edges.forEach((edge) => {
@@ -177,13 +245,11 @@ async function onFilter() {
       edges: processedEdges,
     };
 
-    draw(dto);
+    graphData.value = dto;
+    draw(graphData.value);
   } catch (error) {
     console.error("筛选失败:", error);
-    // 关键修复：模板字符串表达式需要换行
-    message.error(
-      `加载图谱失败: ${error instanceof Error ? error.message : "未知错误"}`
-    );
+    message.error(`加载图谱失败: ${error instanceof Error ? error.message : "未知错误"}`);
   }
 }
 
@@ -224,8 +290,7 @@ function draw(dto: GraphDTO) {
         data: dto.nodes.map((n) => ({
           id: n.id,
           name: n.label,
-          symbolSize:
-            n.type === "Organization" ? 28 : n.type === "Paper" ? 30 : 20,
+          symbolSize: n.type === "Organization" ? 28 : n.type === "Paper" ? 30 : 20,
           itemStyle: {
             color: n.type === "Organization" ? "#e60000" : color[n.type],
           },
@@ -249,7 +314,7 @@ function draw(dto: GraphDTO) {
   ins.off("click");
   ins.on("click", (params) => {
     if (params.dataType === "node") {
-      loadAndMergeSubgraph(params.data.id);
+      handleNodeClick(params.data.id);
       selected.value = params.data as Node;
     }
   });
@@ -263,7 +328,7 @@ function draw(dto: GraphDTO) {
     }));
 
     // 可选：批量保存
-    post("/graph/layout/persist", { positions: updateList })
+    persistLayout(updateList)
       .then(() => message.success("位置已保存"))
       .catch(() => message.error("保存失败"));
   });
@@ -272,77 +337,149 @@ function draw(dto: GraphDTO) {
     "【link 源-目标】",
     dto.edges.map((l) => `${l.source}->${l.target}`)
   );
-  console.log(
-    "【最终】option.series[0].links",
-    JSON.stringify(option.series[0].links)
-  );
+  console.log("【最终】option.series[0].links", JSON.stringify(option.series[0].links));
 }
+
+/**
+ * 点击节点：展开 / 折叠其子树
+ */
+function handleNodeClick(nodeId: string) {
+  if (expandedNodes.value.has(nodeId)) {
+    // 已展开 -> 折叠子树
+    collapseSubtree(nodeId);
+    expandedNodes.value.delete(nodeId);
+  } else {
+    // 未展开 -> 加载子图并合并
+    loadAndMergeSubgraph(nodeId);
+    expandedNodes.value.add(nodeId);
+  }
+}
+
+/**
+ * 绘制/重绘图谱
+ */
 
 /**
  * 加载子图并合并到当前图谱
  */
 async function loadAndMergeSubgraph(nodeId: string) {
   try {
-    // 🔧 提取数字部分，去掉前缀
-    const numericId = nodeId.replace(/^\D+/, ""); // "paper_003" → "003"
-    // 如果前端已经拿到纯数字，直接传
-    const cleanId = nodeId.replace(/^\D+/, "").replace(/^0+/, "") || nodeId;
+    console.log("【调试】请求子图，节点 ID:", nodeId);
 
-    console.log("【调试】请求子图，原始 ID:", nodeId, "提取后 ID:", cleanId);
-
-    const sub = await get<GraphResponse>(`/graph/children/${cleanId}`);
+    const sub = await fetchChildrenGraph(nodeId);
 
     // 同样需要转换数据格式
-    const processedSubNodes: Node[] = sub.nodes.map((node) => ({
-      id: node.id,
-      type: node.label as "Paper" | "Author" | "Organization",
-      label: node.properties?.name || node.properties?.title || node.label,
-      ...node.properties,
-    }));
+    const processedSubNodes: Node[] = sub.nodes.map((node) => {
+      const props = node.properties || {};
+      const type = node.label as "Paper" | "Author" | "Organization";
 
+      const base: Node = {
+        id: props.id || node.id,
+        type,
+        label: props.name || props.title || node.label,
+        ...props,
+      };
+
+      if (type === "Author") {
+        base.hIndex = props.h_index ?? props.hIndex;
+        base.orcid = props.orcid;
+      } else if (type === "Organization") {
+        base.country = props.country;
+        const rankScore = props.rank_score ?? props.rank;
+        base.rank = typeof rankScore === "number" ? rankScore : Number(rankScore || 0);
+      } else if (type === "Paper") {
+        base.title = props.title;
+        base.year = props.year;
+        base.venue = props.venue;
+        base.doi = props.doi;
+      }
+
+      return base;
+    });
+
+    // 边去重
     const edgeMap = new Map<string, Edge>();
-    sub.edges.forEach((edge) => {
-      const key = `${edge.source}-${edge.target}`;
+    [...graphData.value.edges, ...sub.edges].forEach((edge: any) => {
+      const key = `${edge.source}-${edge.target}-${edge.type}`;
       if (!edgeMap.has(key)) {
         edgeMap.set(key, {
           source: edge.source,
           target: edge.target,
           relation: edge.type,
-          ...edge.properties,
+          ...(edge.properties || {}),
         });
       }
     });
-    const processedSubEdges = Array.from(edgeMap.values());
+    const mergedEdges = Array.from(edgeMap.values());
 
-    // 合并逻辑...
-    const currentOption = ins.getOption() as any;
-    const currentNodes = currentOption.series[0].data || [];
-    const currentLinks = currentOption.series[0].links || []; // ✅ links 不是 edges
-
-    const newNodes = processedSubNodes.filter(
-      (n) => !currentNodes.some((cn: any) => cn.id === n.id)
-    );
-    const newLinks = processedSubEdges.filter(
-      (e) =>
-        !currentLinks.some(
-          (ce: any) => ce.source === e.source && ce.target === e.target
-        )
-    );
-
-    ins.setOption({
-      series: [
-        {
-          data: [...currentNodes, ...newNodes],
-          links: [...currentLinks, ...newLinks], // ✅ 用 links
-        },
-      ],
+    // 节点去重合并
+    const nodeMap = new Map<string, Node>();
+    graphData.value.nodes.forEach((n) => nodeMap.set(n.id, n));
+    processedSubNodes.forEach((n) => {
+      if (!nodeMap.has(n.id)) {
+        nodeMap.set(n.id, n);
+      }
     });
+
+    graphData.value = {
+      nodes: Array.from(nodeMap.values()),
+      edges: mergedEdges,
+    };
+
+    draw(graphData.value);
   } catch (error) {
     console.error("加载子图失败:", error);
-    message.error(
-      `加载子节点失败: ${error instanceof Error ? error.message : "未知错误"}`
-    );
+    message.error(`加载子节点失败: ${error instanceof Error ? error.message : "未知错误"}`);
   }
+}
+
+/**
+ * 折叠某个节点的整棵子树（单位-作者-论文关系）
+ * 规则：从该节点沿 AUTHORED / AFFILIATED_WITH 关系做 BFS，删除除根节点外的所有可达节点
+ */
+function collapseSubtree(rootId: string) {
+  const removable = new Set<string>();
+  const visited = new Set<string>([rootId]);
+  const queue: string[] = [rootId];
+
+  const edges = graphData.value.edges.filter(
+    (e) => e.relation === "AUTHORED" || e.relation === "AFFILIATED_WITH"
+  );
+
+  // 建邻接表（无向），方便沿树状结构遍历
+  const adj = new Map<string, string[]>();
+  edges.forEach((e) => {
+    if (!adj.has(e.source)) adj.set(e.source, []);
+    if (!adj.has(e.target)) adj.set(e.target, []);
+    adj.get(e.source)!.push(e.target);
+    adj.get(e.target)!.push(e.source);
+  });
+
+  while (queue.length) {
+    const current = queue.shift()!;
+    const neighbors = adj.get(current) || [];
+    neighbors.forEach((n) => {
+      if (!visited.has(n)) {
+        visited.add(n);
+        removable.add(n); // 根节点本身不加入 removable
+        queue.push(n);
+      }
+    });
+  }
+
+  if (removable.size === 0) return;
+
+  const newNodes = graphData.value.nodes.filter((n) => !removable.has(n.id));
+  const newEdges = graphData.value.edges.filter(
+    (e) => !removable.has(e.source) && !removable.has(e.target)
+  );
+
+  graphData.value = {
+    nodes: newNodes,
+    edges: newEdges,
+  };
+
+  draw(graphData.value);
 }
 
 function tagColor(type: string) {

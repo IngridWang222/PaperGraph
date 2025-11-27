@@ -99,12 +99,8 @@ class GraphDAO:
         node_ids = set()
 
         with self.driver.session() as session:
-            result = session.run(cypher,
-                     year_start=year_start,
-                     year_end=year_end,
-                     author=author,
-                     orgs=orgs,          # ✅ 补上
-                     limit=limit)
+            # 子图查询只需要业务 ID，不需要额外筛选参数
+            result = session.run(cypher, node_id=node_id)
             for rec in result:
                 m_id = rec["m_id"]
                 if m_id not in node_ids:

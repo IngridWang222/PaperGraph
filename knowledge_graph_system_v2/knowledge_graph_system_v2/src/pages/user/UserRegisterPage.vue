@@ -16,10 +16,7 @@
         name="userAccount"
         :rules="[{ required: true, message: '请输入账号' }]"
       >
-        <a-input
-          v-model:value="formState.userAccount"
-          placeholder="请输入账号"
-        />
+        <a-input v-model:value="formState.userAccount" placeholder="请输入账号" />
       </a-form-item>
       <a-form-item
         label="密码"
@@ -29,10 +26,7 @@
           { min: 8, message: '密码不能小于 8 位' },
         ]"
       >
-        <a-input-password
-          v-model:value="formState.userPassword"
-          placeholder="请输入密码"
-        />
+        <a-input-password v-model:value="formState.userPassword" placeholder="请输入密码" />
       </a-form-item>
       <a-form-item
         label="确认密码"
@@ -42,20 +36,14 @@
           { min: 8, message: '确认密码不能小于 8 位' },
         ]"
       >
-        <a-input-password
-          v-model:value="formState.checkPassword"
-          placeholder="请输入确认密码"
-        />
+        <a-input-password v-model:value="formState.checkPassword" placeholder="请输入确认密码" />
       </a-form-item>
       <a-form-item
         label="编号"
         name="planetCode"
         :rules="[{ required: true, message: '请输入编号' }]"
       >
-        <a-input
-          v-model:value="formState.planetCode"
-          placeholder="请输入编号"
-        />
+        <a-input v-model:value="formState.planetCode" placeholder="请输入编号" />
       </a-form-item>
       <a-form-item :wrapper-col="{ offset: 4, span: 20 }">
         <a-button type="primary" html-type="submit">注册</a-button>

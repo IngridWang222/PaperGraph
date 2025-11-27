@@ -87,7 +87,8 @@ const goToStats = () => {
 }
 
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px);
   }
   50% {
@@ -178,11 +179,11 @@ const goToStats = () => {
   .welcome-title {
     font-size: 28px;
   }
-  
+
   .feature-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .action-buttons {
     flex-direction: column;
   }

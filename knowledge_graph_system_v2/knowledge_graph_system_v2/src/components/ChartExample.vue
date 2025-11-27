@@ -81,7 +81,8 @@ onMounted(async () => {
         limit: 1000,
       });
       // 计算所有年份的论文总数
-      paperTotal.value = paperRes.data?.reduce((sum: number, item: any) => sum + (item.value || 0), 0) || 0;
+      paperTotal.value =
+        paperRes.data?.reduce((sum: number, item: any) => sum + (item.value || 0), 0) || 0;
 
       // 获取作者总数
       const authorRes = await post("/statistics/query", {
@@ -96,7 +97,7 @@ onMounted(async () => {
         limit: 1000,
       });
       orgTotal.value = orgRes.total || orgRes.data?.length || 0;
-      
+
       // 期刊/会议总数暂时使用默认值
       venueTotal.value = 85;
     } catch (e) {
@@ -131,9 +132,7 @@ onMounted(async () => {
       tooltip: {},
       xAxis: { type: "category", data: authorNames, axisLabel: { rotate: 30 } },
       yAxis: { type: "value" },
-      series: [
-        { type: "bar", data: authorCounts, itemStyle: { color: "#60a5fa" } },
-      ],
+      series: [{ type: "bar", data: authorCounts, itemStyle: { color: "#60a5fa" } }],
     };
     const instOpt = {
       title: { text: "发表论文最多的前10个机构", left: "center" },
