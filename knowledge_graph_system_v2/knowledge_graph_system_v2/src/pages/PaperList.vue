@@ -93,46 +93,43 @@ function handleTableChange(pager: any) {
 async function loadData() {
   loading.value = true;
   try {
-    /* 后端返回格式：{nodes: [{id, label, properties: {...}}], edges: [...]} */
-    const res = await get("/graph/root", {
-      limit: 200, // 先拉 200 条，前端再分页
-      author: searchKey.value.trim(), // 使用author参数进行搜索
-    });
+    const res = await get("/graph/root", { limit: 200 });
 
-    /* 把图节点转成 Paper 类型 */
-    // 后端返回格式：nodes = [{id, label, properties: {title, year, ...}}]
-    const papers: Paper[] = res.nodes
+    /* ===== ① 先统计总数 ===== */
+    const allPapers = res.nodes
       .filter((n: any) => n.label === "Paper" || n.type === "Paper")
-      .map((n: any) => {
-        const props = n.properties || {};
-        // 如果搜索关键词不为空，进行前端过滤
-        const searchLower = searchKey.value.toLowerCase().trim();
-        const matchesSearch =
-          !searchLower ||
-          (props.title || "").toLowerCase().includes(searchLower) ||
-          (props.name || "").toLowerCase().includes(searchLower);
+      .map((n: any) => n.properties);
+    totalPaperCount.value = allPapers.length; // ← 导出给外部用
 
-        if (!matchesSearch) return null;
+    /* ===== ② 再按搜索词过滤 + 分页 ===== */
+    const searchLower = searchKey.value.toLowerCase().trim();
+    const filtered = allPapers.filter(
+      (props: any) =>
+        !searchLower ||
+        (props.title || "").toLowerCase().includes(searchLower) ||
+        (props.name || "").toLowerCase().includes(searchLower)
+    );
 
-        return {
-          id: n.id,
-          title: props.title || props.name || "未知标题",
-          authors: props.authors || [],
-          orgs: props.orgs || [],
-          year: props.year || 0,
-          url: props.url || (props.doi ? `https://doi.org/${props.doi}` : "#"),
-        };
-      })
-      .filter((p: Paper | null) => p !== null) as Paper[];
+    const papers: Paper[] = filtered.map((props: any) => ({
+      id: props.id,
+      title: props.title || props.name || "未知标题",
+      authors: props.authors || [],
+      orgs: props.orgs || [],
+      year: props.year || 0,
+      url: props.url || (props.doi ? `https://doi.org/${props.doi}` : "#"),
+    }));
 
     const { current = 1, pageSize = 10 } = pagination.value;
     const start = (current - 1) * pageSize;
     data.value = papers.slice(start, start + pageSize);
-    pagination.value.total = papers.length;
+    pagination.value.total = filtered.length;
   } catch (error) {
     console.error("加载论文列表失败:", error);
   } finally {
     loading.value = false;
   }
 }
+</script>
+<script lang="ts">
+export const totalPaperCount = ref<number>(0);
 </script>

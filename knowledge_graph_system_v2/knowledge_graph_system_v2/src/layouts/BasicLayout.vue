@@ -7,15 +7,14 @@
       <a-layout-content class="content">
         <router-view />
       </a-layout-content>
-      <a-layout-footer class="footer">
-        <a href="https://codefather.cn" target="_blank"> 当前文献数量：{{ 2 }} </a>
-      </a-layout-footer>
+      <a-layout-footer class="footer"> 当前文献数量：{{ totalPaperCount }} </a-layout-footer>
     </a-layout>
   </div>
 </template>
 
 <script setup lang="ts">
 import GlobalHeader from "@/components/GlobalHeader.vue";
+import { totalPaperCount } from "@/pages/PaperList.vue";
 
 // 测试代码
 // import { getCurrentUser } from "@/api/user";
