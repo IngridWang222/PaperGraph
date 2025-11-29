@@ -44,6 +44,9 @@
         <template v-else-if="column.dataIndex === 'authors'">
           <span>{{ record.authors.join(";") }}</span>
         </template>
+        <template v-else-if="column.dataIndex === 'orgs'">
+          <span>{{ record.orgs.join(";") }}</span>
+        </template>
       </template>
     </a-table>
   </a-card>
