@@ -30,7 +30,9 @@ class GraphDAO:
         ($year_end   IS NULL OR b.year <= $year_end)   AND
         ($author     = ""    OR  a.name CONTAINS $author) AND
         ($orgs       = []   OR o.name IN $orgs)
-
+        WITH b, o, a, r, r2,
+            collect(DISTINCT a.name) AS paper_authors,
+            collect(DISTINCT o.name) AS paper_orgs
         RETURN
             a.id   AS a_id,
             b.id   AS b_id,
@@ -39,7 +41,9 @@ class GraphDAO:
             b      AS b_node,
             o      AS o_node,
             r      AS rel,
-            r2     AS rel2
+            r2     AS rel2,
+            paper_authors,
+            paper_orgs
         LIMIT $limit
         """
         nodes: List[Dict] = []
@@ -66,7 +70,11 @@ class GraphDAO:
                         nodes.append({
                             "id": node_id,
                             "label": list(node.labels)[0],
-                            "properties": dict(node),
+                            "properties": {
+                                **dict(node),
+                                "authors": rec["paper_authors"],
+                                "orgs": rec["paper_orgs"],
+                            }
                         })
                         node_ids.add(node_id)
 

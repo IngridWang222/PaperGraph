@@ -107,7 +107,11 @@ async function loadData() {
       (props: any) =>
         !searchLower ||
         (props.title || "").toLowerCase().includes(searchLower) ||
-        (props.name || "").toLowerCase().includes(searchLower)
+        (props.name || "").toLowerCase().includes(searchLower) ||
+        (props.authors || []).some((author: string) =>
+          author.toLowerCase().includes(searchLower)
+        ) ||
+        (props.orgs || []).some((org: string) => org.toLowerCase().includes(searchLower))
     );
 
     const papers: Paper[] = filtered.map((props: any) => ({
